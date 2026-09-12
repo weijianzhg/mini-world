@@ -8,8 +8,8 @@ export default defineConfig({
   webServer: process.env.GAME_TEST_URL
     ? undefined
     : {
-        command: 'npm run dev -- --host 127.0.0.1',
-        url: 'http://127.0.0.1:3000',
+        command: 'npm run dev',
+        url: 'http://localhost:3000',
         reuseExistingServer: !process.env.CI,
         timeout: 120000,
       },
