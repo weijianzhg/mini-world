@@ -5,6 +5,14 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
+  webServer: process.env.GAME_TEST_URL
+    ? undefined
+    : {
+        command: 'npm run dev -- --host 127.0.0.1',
+        url: 'http://127.0.0.1:3000',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120000,
+      },
   use: {
     baseURL: process.env.GAME_TEST_URL || 'http://localhost:3000',
     viewport: { width: 1440, height: 1000 },

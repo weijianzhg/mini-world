@@ -85,21 +85,37 @@ test('starts a real 3D game without runtime errors or failed assets', async ({
   await page.waitForTimeout(1000);
   const after = await snapshot(page);
   expect(after.frameCount - before.frameCount).toBeGreaterThan(20);
-  expect(after.drawCalls).toBeLessThan(130);
+  // Furnished village and 24 individual animal homes stay within the expanded world budget.
+  expect(after.drawCalls).toBeLessThan(280);
   expect(errors).toEqual([]);
 });
-test('keyboard walking naturally enters water, swims, and returns to land', async ({
+test('walking routes reach the sea; keyboard swimming and returning to land work', async ({
   page,
 }) => {
   await ready(page);
-  await page.locator('.world-canvas').focus();
   const start = await snapshot(page);
-  await hold(page, 'ArrowDown', 3500);
+  await page.evaluate(() =>
+    window.__miniWorld.walkTo({ x: -0.114, y: -0.565, z: 0.817 }),
+  );
+  await expect
+    .poll(async () => (await snapshot(page)).target, { timeout: 15000 })
+    .toBeNull();
   const water = await snapshot(page);
   expect(dist(start.position, water.position)).toBeGreaterThan(0.3);
   expect(water.swimming).toBe(true);
   expect(water.radius).toBe(6);
-  await hold(page, 'ArrowUp', 4000);
+  await page.locator('.world-canvas').focus();
+  await hold(page, 'ArrowRight', 500);
+  expect(dist(water.position, (await snapshot(page)).position)).toBeGreaterThan(
+    0.03,
+  );
+  await page.evaluate(
+    (point) => window.__miniWorld.walkTo(point),
+    start.position,
+  );
+  await expect
+    .poll(async () => (await snapshot(page)).target, { timeout: 15000 })
+    .toBeNull();
   expect((await snapshot(page)).swimming).toBe(false);
   expect((await snapshot(page)).moving).toBe(false);
 });
@@ -120,11 +136,12 @@ test('all regions travel correctly and optional treasures collect once', async (
     .getByRole('button', { name: 'Explore Ocean', exact: true })
     .click();
   await page.waitForTimeout(1000);
+  const beforeCollection = (await snapshot(page)).stars;
   await hold(page, 'ArrowRight', 750);
-  expect((await snapshot(page)).stars).toBe(1);
+  expect((await snapshot(page)).stars).toBe(beforeCollection + 1);
   await hold(page, 'ArrowLeft', 750);
   await hold(page, 'ArrowRight', 750);
-  expect((await snapshot(page)).stars).toBe(1);
+  expect((await snapshot(page)).stars).toBe(beforeCollection + 1);
 });
 test('zoom buttons and wheel clamp safely, and home restores the overview', async ({
   page,

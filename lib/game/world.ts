@@ -64,21 +64,35 @@ export function terrain(p: Point) {
     0.033 * Math.sin(n.x * 19 + n.z * 11) * Math.cos(n.y * 21) +
     0.023 * Math.sin(n.z * 27 + n.y * 12);
   let edge = -10,
-    region: Region = 'ocean';
-  for (const land of lands) {
+    region: Region = 'ocean',
+    landIndex = -1;
+  for (const [index, land] of lands.entries()) {
     const e = land.size - angularDistance(n, land.center) + ripple;
     if (e > edge) {
       edge = e;
       region = land.region;
+      landIndex = index;
     }
   }
   if (edge < 0)
-    return { region: 'ocean' as Region, radius: RADIUS, shore: false, edge };
+    return {
+      region: 'ocean' as Region,
+      land: -1,
+      radius: RADIUS,
+      shore: false,
+      edge,
+    };
   const height =
     0.075 +
     Math.min(0.19, edge * 0.9) +
     0.045 * Math.sin(n.x * 20) * Math.cos(n.y * 18) * Math.min(1, edge * 12);
-  return { region, radius: RADIUS + height, shore: edge < 0.08, edge };
+  return {
+    region,
+    land: landIndex,
+    radius: RADIUS + height,
+    shore: edge < 0.08,
+    edge,
+  };
 }
 export function advance(p: Point, direction: Point, distance: number): Point {
   const dot = p.x * direction.x + p.y * direction.y + p.z * direction.z;

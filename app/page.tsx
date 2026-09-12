@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Globe2,
-  Sun,
   Volume2,
   VolumeX,
   CircleHelp,
@@ -17,6 +16,12 @@ import {
   MountainSnow,
   Sprout,
   Star,
+  Circle,
+  RectangleHorizontal,
+  Diamond,
+  Triangle,
+  Hexagon,
+  Shapes,
   ArrowUp,
   ArrowDown,
   ArrowLeft,
@@ -25,6 +30,9 @@ import {
   Hand,
   Mouse,
   Sparkles,
+  UserRound,
+  House,
+  BedDouble,
 } from 'lucide-react';
 import {
   Dialog,
@@ -41,10 +49,27 @@ const regionIcons = {
   ocean: Waves,
   snow: MountainSnow,
 };
+const shapeIcons: Record<string, typeof Star> = {
+  star: Star,
+  circle: Circle,
+  rectangle: RectangleHorizontal,
+  diamond: Diamond,
+  triangle: Triangle,
+  hexagon: Hexagon,
+};
 const initial: GameState = {
+  selectedPerson: 'sunny',
+  selectedAnimal: null,
+  animalRest: null,
+  floor: 0,
+  floorCount: 1,
+  changingFloor: false,
+  people: [],
+  insideHouse: null,
   region: 'forest',
   swimming: false,
   stars: 0,
+  treasures: [],
   visited: ['forest'],
   moving: false,
   zoom: 35,
@@ -116,6 +141,9 @@ export default function Home() {
     game.current?.setSound(next);
   }
   const region = REGIONS[state.region];
+  const selectedPhase = state.people.find(
+    (p) => p.id === state.selectedPerson,
+  )?.phase;
   return (
     <main
       className={`game-shell ${state.zoom > 65 ? 'is-close' : ''}`}
@@ -169,9 +197,6 @@ export default function Home() {
           </button>
         </div>
       </header>
-      <div className="day-pill">
-        <Sun /> A lovely day for an adventure
-      </div>
       <aside className="discovery">
         <span className="eyebrow">
           {state.swimming ? 'SPLISH, SPLASH!' : 'LET’S GO EXPLORING'}
@@ -198,15 +223,32 @@ export default function Home() {
       </aside>
       <div
         className="collection"
-        aria-label={`${state.stars} of 12 stars found`}
+        aria-label={`${state.stars} of 12 shapes found`}
       >
-        <Star />
+        <Shapes />
         <div>
           <strong>
             {state.stars}{' '}
             <span style={{ fontSize: '14px', fontWeight: 500 }}> / 12</span>
           </strong>
-          <span>little stars found</span>
+          <span>shapes found</span>
+          <div className="shape-shelf" aria-label="Shape collection">
+            {state.treasures.map((t) => {
+              const Icon = shapeIcons[t.kind];
+              return (
+                <span
+                  key={t.kind}
+                  title={`${t.kind}: ${t.found} of ${t.total}`}
+                  aria-label={`${t.kind}: ${t.found} of ${t.total}`}
+                  className={t.found ? 'found' : ''}
+                  style={{ '--token-color': t.color } as React.CSSProperties}
+                >
+                  <Icon />
+                  <small>{t.found}</small>
+                </span>
+              );
+            })}
+          </div>
         </div>
       </div>
       <div className="zoom-stack">
@@ -236,7 +278,122 @@ export default function Home() {
           <LocateFixed />
         </button>
       </div>
-      <div className="dock-caption">WHERE SHALL WE GO?</div>
+      <nav className="people-picker" aria-label="Choose a person">
+        {state.people.map((friend) => (
+          <button
+            key={friend.id}
+            className={state.selectedPerson === friend.id ? 'selected' : ''}
+            aria-label={`Choose ${friend.name}`}
+            aria-pressed={state.selectedPerson === friend.id}
+            onClick={() => game.current?.selectPerson(friend.id)}
+            style={{ '--friend-color': friend.color } as React.CSSProperties}
+          >
+            <UserRound />
+            <span>{friend.name}</span>
+            {friend.insideHouse && (
+              <House className="at-home-icon" aria-label="Inside a house" />
+            )}
+          </button>
+        ))}
+      </nav>
+      {state.animalRest && (
+        <aside className="house-visit" aria-label="Animal home">
+          <House />
+          <span>
+            {state.animalRest.homeName}
+            {state.animalRest.phase === 'sleeping'
+              ? ' · Sleeping'
+              : state.animalRest.phase === 'going-home'
+                ? ' · Going home…'
+                : ''}
+          </span>
+          {state.animalRest.phase === 'outside' ? (
+            <button onClick={() => game.current?.restAnimal()}>
+              Go home & rest
+            </button>
+          ) : (
+            <button onClick={() => game.current?.wakeAnimal()}>
+              {state.animalRest.phase === 'sleeping'
+                ? 'Wake up & come outside'
+                : 'Stay outside'}
+            </button>
+          )}
+        </aside>
+      )}
+      {state.insideHouse && (
+        <aside className="house-visit">
+          <House />
+          {state.floorCount > 1 && (
+            <div className="floor-controls">
+              <span>
+                {state.changingFloor
+                  ? 'On the stairs…'
+                  : state.floor === 0
+                    ? 'Ground floor'
+                    : 'Upstairs'}
+              </span>
+              <button
+                disabled={state.changingFloor}
+                onClick={() =>
+                  game.current?.changeFloor(state.floor === 0 ? 1 : 0)
+                }
+              >
+                {state.floor === 0 ? 'Go upstairs' : 'Go downstairs'}
+              </button>
+            </div>
+          )}
+          <span>
+            {state.people.find((p) => p.id === state.selectedPerson)?.name} is{' '}
+            {state.people.find((p) => p.id === state.selectedPerson)?.phase ===
+            'sleeping'
+              ? 'resting'
+              : selectedPhase === 'seated'
+                ? 'at the table'
+                : 'inside'}
+          </span>
+          <button
+            className="bed-button"
+            disabled={state.changingFloor}
+            onClick={() =>
+              state.people.find((p) => p.id === state.selectedPerson)?.phase ===
+              'sleeping'
+                ? game.current?.wakeUp()
+                : game.current?.useBed()
+            }
+          >
+            <BedDouble size={18} />
+            {state.people.find((p) => p.id === state.selectedPerson)?.phase ===
+            'sleeping'
+              ? 'Wake up'
+              : 'Use bed'}
+          </button>
+          <button
+            className="table-button"
+            disabled={state.changingFloor}
+            onClick={() =>
+              selectedPhase === 'seated'
+                ? game.current?.standUp()
+                : game.current?.useTable()
+            }
+          >
+            {selectedPhase === 'seated' ? 'Stand up' : 'Use table'}
+          </button>
+          {selectedPhase === 'seated' && (
+            <button
+              className="drink-button"
+              onClick={() => game.current?.drinkWater()}
+            >
+              Drink water
+            </button>
+          )}
+          <button onClick={() => game.current?.leaveHouse()}>
+            Come outside
+          </button>
+        </aside>
+      )}
+      <div className="dock-caption">
+        CHOOSE A PERSON OR ANIMAL · CLICK TO MOVE
+      </div>
       <nav className="region-dock" aria-label="Choose a place to explore">
         {(Object.keys(REGIONS) as Region[]).map((r) => {
           const Icon = regionIcons[r];
@@ -265,7 +422,7 @@ export default function Home() {
           <kbd>→</kbd>
           <span>to wander</span>
         </div>
-        <p>Click to walk · Drag to look around</p>
+        <p>Click a person or animal · Click to move</p>
         <p>Scroll to see a little more</p>
       </div>
       <div className="touch-pad" aria-label="Movement controls">
@@ -348,6 +505,24 @@ export default function Home() {
           </DialogDescription>
           <div className="help-items">
             <div>
+              <UserRound />
+              <span>
+                <strong>Four friends to play with</strong>Click a person or
+                their name to choose them. Each friend keeps their own
+                destination.
+              </span>
+            </div>
+            <div>
+              <House />
+              <span>
+                <strong>Come on in!</strong>Click a big or small house to walk
+                through its door. In the tall house, click the stairs or choose
+                “Go upstairs” and “Go downstairs”. Animals wait outside. Click
+                the bed or choose “Use bed” for a rest, then “Wake up” or “Come
+                outside”. Use the table to sit, then choose “Drink water”.
+              </span>
+            </div>
+            <div>
               <Footprints />
               <span>
                 <strong>Let’s go for a walk</strong>Use the arrow keys, W A S D,
@@ -358,7 +533,7 @@ export default function Home() {
               <Mouse />
               <span>
                 <strong>Point to a new adventure</strong>Tap a spot on the
-                planet to walk there.
+                planet to walk there. Trees are solid, so we walk around them.
               </span>
             </div>
             <div>
@@ -378,8 +553,9 @@ export default function Home() {
             <div>
               <Star />
               <span>
-                <strong>A little treasure hunt</strong>Walk near a golden star
-                to collect it.
+                <strong>A little treasure hunt</strong>Find stars, circles,
+                rectangles, diamonds, triangles and hexagons. Walk close to pick
+                them up!
               </span>
             </div>
           </div>

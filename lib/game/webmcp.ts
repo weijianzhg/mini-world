@@ -18,7 +18,7 @@ export function registerGameTools(game: Game) {
         name: 'get_exploration_state',
         title: 'Read Mini World',
         description:
-          'Read the current place, swimming state, and collected stars.',
+          'Read the current place, swimming state, and collected shapes.',
         inputSchema: {
           type: 'object',
           properties: {},
